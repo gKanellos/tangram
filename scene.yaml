@@ -1,0 +1,124 @@
+
+background:
+        color: black
+
+cameras:
+    camera1:
+        type: isometric
+
+lights:
+    light1:
+        type: ambient
+        direction: [0, 1, -.5]
+        diffuse: .1
+        ambient: .1
+    light2: 
+        visible: true
+        type: point
+        position: [-100.0170, 70.7031, 100]
+        origin: ground
+        ambient: .2
+        diffuse: 6
+        specular: .2
+        
+
+
+
+sources:
+    osm:
+        type: TopoJSON
+        url:  https://vector.mapzen.com/osm/all/{z}/{x}/{y}.topojson?api_key=<vector-tiles-C3HowRY
+        max_zoom: 16
+
+layers:
+    earth:
+        data: { source: osm }
+        draw:
+            polygons:
+                order: function() { return feature.sort_key; }
+                color: '#ddeeee'
+
+    landuse:
+        data: { source: osm }
+        draw:
+            polygons:
+                order: function() { return feature.sort_key; }
+                color: '#aaffaa'
+
+    water:
+        data: { source: osm }
+        draw:
+            polygons:
+                order: function() { return feature.sort_key; }
+                color: '#00001a'
+
+    
+
+    roads:
+        base: lines
+        animated: true
+        texcoords: true
+        lighting: false
+        lighting: false
+        shaders:
+            blocks:
+                global: |
+                    float getHatch(in vec2 _pos, float _angle, float _brigtness){
+                        _pos *= 20.;
+                        _pos = _pos.yx;
+                        return 1.0-smoothstep(-1.+_brigtness*2.0,1.,abs(sin(_pos.x*3.1415)));
+                    }
+                filter: |
+                    vec2 st = fract(v_texcoord.xy*vec2(1.,.1));
+                    float dir = -0.1;
+                    if ( v_color.r < 0.5) {
+                        if (st.x < 0.5) {
+                          dir *= -1.;
+                        }
+                        st.x = fract(st.x*2.0);
+                    }
+                    float pattern = getHatch( u_time*dir+st.xy*0.5, 3.1415*0.5, 0.5);
+                    color.rgb = vec3(1.000,0.865,0.387)* pattern*sin(smoothstep(0.0,1.,st.x)*3.1415);
+        draw:
+            lines:
+                order: function() { return feature.sort_key; }
+                color: gray
+                width: 8
+                cap: round
+        highway:
+            filter:
+                kind: highway
+            draw:
+                lines:
+                    order: function() { return feature.sort_key; }
+                    color: '#cc6666'
+                    width: 12
+                    outline:
+                        color: grey
+                        width: 1.5
+        minor_road:
+            filter:
+                kind: minor_road
+            draw:
+                lines:
+                    order: function() { return feature.sort_key; }
+                    color: lightgrey
+                    width: 5
+                    
+    buildings:
+        data: { source: osm }
+        draw:
+            polygons:
+                order: function() { return feature.sort_key; }
+                color: |
+                    function () {
+                        var h = feature.height || 20;
+                        h = Math.min((h + 50)/ 255, .8); // max brightness: .8
+                        h = Math.max(h, .4); // min brightness: .4
+                        return [h, h, h];
+                    }
+        3d-buildings:
+            filter: { $zoom: { min: 15 } }
+            draw:
+                polygons:
+                    extrude: function () { return feature.height > 20 || $zoom >=16; }
